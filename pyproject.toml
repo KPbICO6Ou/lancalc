@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lancalc"
+dynamic = ["version"]
+description = "A desktop application for calculating network configurations"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Aleksandr Pimenov", email = "wachawo@gmail.com"}
+]
+maintainers = [
+    {name = "Aleksandr Pimenov", email = "wachawo@gmail.com"}
+]
+keywords = ["network", "calculator", "subnet", "ip", "address"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Networking",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "netifaces>=0.11.0; platform_system == 'Linux'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-qt>=4.0.0",
+    "pre-commit",
+    "flake8",
+]
+gui = [
+    "PyQt5>=5.15.0",
+    "PyQt5-Qt5>=5.15.0",
+    "PyQt5_sip>=12.15.0",
+]
+build = [
+    "PyInstaller>=6.0.0",
+]
+
+[project.scripts]
+lancalc = "lancalc.main:main"
+
+[project.urls]
+Homepage = "https://github.com/lancalc/lancalc"
+Repository = "https://github.com/lancalc/lancalc"
+Documentation = "https://github.com/lancalc/lancalc#readme"
+"Bug Reports" = "https://github.com/lancalc/lancalc/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "lancalc.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["lancalc*"]
+
+[tool.pytest.ini_options]
+testpaths = ["test_lancalc.py"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+qt_api = "pyqt5"

@@ -1,0 +1,117 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+        exclude:
+          # Skip Windows with Python 3.12 due to PyQt5 compatibility issues
+          - os: windows-latest
+            python-version: '3.12'
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb qtbase5-dev qt5-qmake
+    
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install qt@5
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,gui]
+    
+    - name: Run linting
+      run: |
+        flake8 lancalc/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 lancalc/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Run core tests
+      run: |
+        python -m pytest test_lancalc.py -v
+    
+    - name: Run GUI tests (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        xvfb-run -a python -m pytest test_lancalc.py -v
+    
+    - name: Run GUI tests (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        python -m pytest test_lancalc.py -v
+    
+    - name: Run GUI tests (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        python -m pytest test_lancalc.py -v
+    
+    - name: Test CLI functionality
+      run: |
+        python -m lancalc.main 192.168.1.1/24
+        python -m lancalc.main 10.0.0.1/8
+        python -m lancalc.main 172.16.0.1/16
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel setuptools
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Publish to PyPI
+      if: github.event_name == 'release'
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
