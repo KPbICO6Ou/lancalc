@@ -380,7 +380,7 @@ if GUI_AVAILABLE:
                 main_layout = QVBoxLayout()
                 self.setWindowTitle('LanCalc')
                 input_width = 200
-                font = QFont('Ubuntu', 12) # 12
+                font = QFont('Ubuntu', 12)  # 12
                 # Fallback font if Ubuntu is not available
                 if not font.exactMatch():
                     font = QFont('Arial', 12)
@@ -453,7 +453,7 @@ if GUI_AVAILABLE:
                 self.link_label = QLabel(f'<a href="https://github.com/lancalc/lancalc">LanCalc {VERSION}</a>')
                 self.link_label.setOpenExternalLinks(True)
                 self.link_label.setAlignment(Qt.AlignCenter)
-                link_font = QFont('Ubuntu', 11) # 11
+                link_font = QFont('Ubuntu', 11)  # 11
                 if not link_font.exactMatch():
                     link_font = QFont('Arial', 11)
                 self.link_label.setFont(link_font)
@@ -594,7 +594,7 @@ if GUI_AVAILABLE:
             try:
                 field_layout = QHBoxLayout()
                 label = QLabel(label_text)
-                label_font = QFont('Ubuntu', 13) # 13
+                label_font = QFont('Ubuntu', 13)  # 13
                 if not label_font.exactMatch():
                     label_font = QFont('Arial', 13)
                 label.setFont(label_font)
