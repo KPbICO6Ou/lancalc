@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from setuptools import setup, find_packages
 import os
 import re
+from setuptools import setup, find_packages
 
 
 # Read the contents of README file

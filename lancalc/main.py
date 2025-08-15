@@ -11,15 +11,26 @@ Changes:
 - GUI starts if no argument is provided and GUI is available.
 """
 import argparse
-import sys
-import os
-import re
+import json
 import ipaddress
 import logging
+import traceback
+import os
 import platform
+import re
 import socket
 import subprocess
-import json
+import sys
+
+logging.basicConfig(
+    handlers=[
+        logging.StreamHandler(sys.stderr)
+    ],
+    level=logging.WARNING,
+    format='%(asctime)s.%(msecs)03d [%(levelname)s]: (%(name)s.%(funcName)s) - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 # Try to import Qt — not required for CLI
@@ -31,7 +42,8 @@ try:
     from PyQt5.QtCore import QEvent
     from PyQt5.QtGui import QFont, QKeyEvent
     GUI_AVAILABLE = True
-except Exception:
+except Exception as e:
+    logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
     GUI_AVAILABLE = False
 
 # Import version — support running as package/as script
@@ -46,14 +58,6 @@ except Exception:
     except Exception:
         VERSION = "0.0.0"
 
-logging.basicConfig(
-    handlers=[logging.StreamHandler(sys.stderr)],
-    level=logging.WARNING,
-    format='%(asctime)s.%(msecs)03d [%(levelname)s]: (%(name)s.%(funcName)s) - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
-
 
 def get_ip() -> str:
     """Return the primary local IPv4 address without external libs."""
@@ -61,11 +65,13 @@ def get_ip() -> str:
     try:
         s.connect(("8.8.8.8", 80))
         return s.getsockname()[0]
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         # Fallback: hostname resolution (may return 127.0.0.1 in some setups)
         try:
             return socket.gethostbyname(socket.gethostname())
-        except Exception:
+        except Exception as e:
+            logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
             return "127.0.0.1"
     finally:
         s.close()
@@ -75,7 +81,8 @@ def cidr_from_netmask(mask: str) -> int:
     try:
         parts = [int(x) for x in mask.split('.')]
         return sum(bin(p).count('1') for p in parts)
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         return 24
 
 
@@ -89,7 +96,8 @@ def get_cidr(ip: str) -> int:
             return _get_cidr_macos(ip)
         else:
             return _get_cidr_linux(ip)
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         return 24
 
 
@@ -119,7 +127,7 @@ def _get_cidr_windows(ip: str) -> int:
                 # Look for subnet mask in next few lines
                 for j in range(i, min(i + 10, len(lines))):
                     line_lower = lines[j].lower()
-                    # More comprehensive locale support
+                    # FIXME: We need to find another way to detect
                     mask_keywords = [
                         "subnet mask", "маска подсети", "subnetmaske", "máscara de sub-rede",
                         "masque de sous-réseau", "subnetmask", "netmask", "маска підмережі"
@@ -136,7 +144,8 @@ def _get_cidr_windows(ip: str) -> int:
                                 mask = match.group(1)
                                 return cidr_from_netmask(mask)
         return 24
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         return 24
 
 
@@ -179,7 +188,8 @@ def _get_cidr_macos(ip: str) -> int:
                 netmask_int = int(netmask_hex, 16)
                 return bin(netmask_int).count('1')
         return 24
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         return 24
 
 
@@ -189,7 +199,6 @@ def _get_cidr_linux(ip: str) -> int:
         # Try JSON output first for better parsing
         try:
             out = subprocess.check_output(["ip", "-json", "-4", "addr", "show"], encoding="utf-8", errors="ignore")
-            import json
             data = json.loads(out)
             for iface in data:
                 for addr in iface.get("addr_info", []):
@@ -205,7 +214,8 @@ def _get_cidr_linux(ip: str) -> int:
             if m and m.group(1) == ip:
                 return int(m.group(2))
         return 24
-    except Exception:
+    except Exception as e:
+        logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         return 24
 
 
@@ -461,7 +471,7 @@ if GUI_AVAILABLE:
 
                 self.setLayout(main_layout)
             except Exception as e:
-                logger.error(f"Failed to initialize UI: {e}")
+                logging.error(f"Failed to initialize UI: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
 
         def apply_cidr_from_text(self, text: str) -> None:
             """Apply CIDR from the IP input when triggered (focus out or Enter/Tab).
@@ -499,7 +509,7 @@ if GUI_AVAILABLE:
                 else:
                     self.ip_input.setStyleSheet("color: red;")
             except Exception as e:
-                logger.error(f"Error applying CIDR from IP input: {e}")
+                logging.error(f"Error applying CIDR from IP input: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
                 self.ip_input.setStyleSheet("color: red;")
 
         def eventFilter(self, obj, event):
@@ -516,7 +526,7 @@ if GUI_AVAILABLE:
                             return False
                 return super().eventFilter(obj, event)
             except Exception as e:
-                logger.error(f"Error in event filter: {e}")
+                logger.error(f"Error in event filter: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
                 return super().eventFilter(obj, event)
 
         def validate_ip_address(self, ip_str: str) -> bool:
@@ -524,7 +534,7 @@ if GUI_AVAILABLE:
                 validate_ip(ip_str)
                 return True
             except ValueError as e:
-                logger.warning(f"Invalid IP address format: {ip_str} - {e}")
+                logger.warning(f"Invalid IP address format: {ip_str} - {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
                 return False
 
         def validate_cidr(self, cidr_str: str) -> bool:
@@ -532,7 +542,7 @@ if GUI_AVAILABLE:
                 validate_prefix(cidr_str)
                 return True
             except ValueError as e:
-                logger.warning(f"Invalid CIDR format: {cidr_str} - {e}")
+                logger.warning(f"Invalid CIDR format: {cidr_str} - {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
                 return False
 
         def check_clipboard(self):
@@ -561,7 +571,7 @@ if GUI_AVAILABLE:
                     else:
                         logger.warning(f"Invalid IP address in clipboard: {ip_address}")
             except Exception as e:
-                logger.error(f"Error checking clipboard: {e}")
+                logger.error(f"Error checking clipboard: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
 
         def set_default_values(self):
             try:
@@ -588,7 +598,7 @@ if GUI_AVAILABLE:
                 else:
                     logger.warning(f"Invalid default IP address: {default_ip}")
             except Exception as e:
-                logger.warning(f"Could not determine default network settings: {e}")
+                logger.warning(f"Could not determine default network settings: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
 
         def add_output_field(self, layout, label_text, line_edit):
             try:
@@ -603,7 +613,7 @@ if GUI_AVAILABLE:
                 field_layout.addWidget(line_edit)
                 layout.addLayout(field_layout)
             except Exception as e:
-                logger.error(f"Failed to add output field '{label_text}': {e}")
+                logger.error(f"Failed to add output field '{label_text}': {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
 
         def calculate_network(self, *args, **kwargs):
             try:
@@ -629,7 +639,7 @@ if GUI_AVAILABLE:
                 self.hosts_output.setText(result["Hosts"])
                 self.ip_input.setStyleSheet("color: black;")
             except Exception as e:
-                logger.error(f"Unexpected error in network calculation: {e}")
+                logger.error(f"Unexpected error in network calculation: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
                 self.ip_input.setStyleSheet("color: red;")
 
         def keyPressEvent(self, event: QKeyEvent):
@@ -639,7 +649,7 @@ if GUI_AVAILABLE:
                 else:
                     super().keyPressEvent(event)
             except Exception as e:
-                logger.error(f"Error handling key press event: {e}")
+                logger.error(f"Error handling key press event: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
 
         def closeEvent(self, event):
             logger.info("LanCalc application closing")
@@ -699,14 +709,14 @@ def main(argv=None) -> int:
                 print_result_stdout(res)
             return 0
         except Exception as e:
-            logger.error(str(e))
+            logger.error(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
             return 1
 
     # Otherwise — try GUI
     try:
         return _run_gui()
     except Exception as e:
-        logger.critical(f"Failed to start GUI: {e}")
+        logger.critical(f"Failed to start GUI: {type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         # Last attempt — inform the user about the argument
         print("GUI is unavailable. Provide ADDRESS argument, e.g. 192.168.88.2/24. Use --help.")
         return 1
