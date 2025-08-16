@@ -15,17 +15,23 @@ Support IPv4 address formats, subnet masks and prefixes. This tool is particular
 
 ### Installation
 
+**Install LanCalc Stable version:**
+
+```bash
+pip3 install lancalc
+```
+
+**Or install LanCalc from GitHub:**
+
+```bash
+pip3 install git+https://github.com/lancalc/lancalc.git
+```
+
 Install PIP
 
 ```bash
 curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
 python3 /tmp/get-pip.py
-```
-
-Install LanCalc with one command:
-
-```bash
-pip3 install git+https://github.com/lancalc/lancalc.git
 ```
 
 If the `lancalc` command is not found after installation, add the local packages path to PATH:
