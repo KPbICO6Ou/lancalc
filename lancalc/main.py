@@ -388,7 +388,7 @@ def compute(ip: str, prefix: int) -> dict:
         "hostmax": hostmax_str,
         "hosts": hosts_str,
         "comment": message,
-        "type": "info"
+        "comment": message
     }
 
 
