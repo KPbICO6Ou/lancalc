@@ -8,6 +8,9 @@ import logging
 import os
 import traceback
 import sys
+import asyncio
+import time
+from typing import Optional
 
 # Configure logging
 logging.basicConfig(
@@ -46,8 +49,10 @@ try:
         QLineEdit,
         QPushButton,
         QComboBox,
+        QCheckBox,
+        QProgressBar,
     )
-    from PyQt5.QtCore import Qt, QEvent
+    from PyQt5.QtCore import Qt, QEvent, QTimer, pyqtSignal, QThread, QObject
     from PyQt5.QtGui import QFont, QKeyEvent
 
     GUI_AVAILABLE = True
@@ -64,6 +69,239 @@ except ImportError:
             pass
 
         Bold = 75
+
+    class QObject:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class QThread:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def isRunning(self):
+            return False
+        
+        def quit(self):
+            pass
+        
+        def wait(self):
+            pass
+        
+        def start(self):
+            pass
+
+    class pyqtSignal:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def connect(self, *args, **kwargs):
+            pass
+
+    class QProgressBar:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setVisible(self, *args, **kwargs):
+            pass
+        
+        def setRange(self, *args, **kwargs):
+            pass
+
+    class QCheckBox:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setFont(self, *args, **kwargs):
+            pass
+        
+        def setChecked(self, *args, **kwargs):
+            pass
+        
+        def isChecked(self):
+            return False
+
+    class QHBoxLayout:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def addWidget(self, *args, **kwargs):
+            pass
+        
+        def addStretch(self, *args, **kwargs):
+            pass
+
+    class QLineEdit:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setPlaceholderText(self, *args, **kwargs):
+            pass
+        
+        def setStyleSheet(self, *args, **kwargs):
+            pass
+        
+        def setReadOnly(self, *args, **kwargs):
+            pass
+        
+        def text(self):
+            return ""
+        
+        def setText(self, *args, **kwargs):
+            pass
+        
+        def clear(self, *args, **kwargs):
+            pass
+        
+        def setFont(self, *args, **kwargs):
+            pass
+        
+        def setFixedWidth(self, *args, **kwargs):
+            pass
+        
+        def setAlignment(self, *args, **kwargs):
+            pass
+        
+        def installEventFilter(self, *args, **kwargs):
+            pass
+        
+        def mousePressEvent(self, *args, **kwargs):
+            pass
+
+    class QVBoxLayout:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def addWidget(self, *args, **kwargs):
+            pass
+        
+        def addLayout(self, *args, **kwargs):
+            pass
+
+    class QWidget:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setWindowTitle(self, *args, **kwargs):
+            pass
+        
+        def setLayout(self, *args, **kwargs):
+            pass
+        
+        def show(self, *args, **kwargs):
+            pass
+
+    class QLabel:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setFont(self, *args, **kwargs):
+            pass
+        
+        def setText(self, *args, **kwargs):
+            pass
+        
+        def setOpenExternalLinks(self, *args, **kwargs):
+            pass
+        
+        def setAlignment(self, *args, **kwargs):
+            pass
+
+    class QPushButton:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setFont(self, *args, **kwargs):
+            pass
+        
+        def clicked(self):
+            return None
+        
+        def connect(self, *args, **kwargs):
+            pass
+        
+        def setEnabled(self, *args, **kwargs):
+            pass
+
+    class QComboBox:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def setFont(self, *args, **kwargs):
+            pass
+        
+        def addItem(self, *args, **kwargs):
+            pass
+        
+        def setFixedWidth(self, *args, **kwargs):
+            pass
+        
+        def setCurrentIndex(self, *args, **kwargs):
+            pass
+        
+        def currentIndex(self):
+            return 0
+
+    class QApplication:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def clipboard(self):
+            return None
+        
+        def exec_(self):
+            return 0
+
+    class QEvent:
+        def __init__(self, *args, **kwargs):
+            pass
+        
+        def type(self):
+            return 0
+        
+        FocusIn = 8
+        FocusOut = 9
+        KeyPress = 6
+
+    class Qt:
+        AlignRight = 0x0002
+        AlignCenter = 0x0004
+        Key_Enter = 0x01000003
+        Key_Return = 0x01000004
+        Key_Tab = 0x01000001
+
+
+class ComputationWorker(QObject):
+    """Worker thread for async computation."""
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+    
+    def __init__(self, ip: str, prefix: int, debug: bool = False):
+        super().__init__()
+        self.ip = ip
+        self.prefix = prefix
+        self.debug = debug
+    
+    def run(self):
+        """Run computation in worker thread."""
+        try:
+            if self.debug:
+                logger.debug(f"Worker starting computation for {self.ip}/{self.prefix}")
+            
+            start_time = time.time()
+            result = core.compute(self.ip, self.prefix)
+            computation_time = (time.time() - start_time) * 1000
+            
+            if self.debug:
+                logger.debug(f"Worker completed computation in {computation_time:.2f}ms")
+                result["_debug"] = {
+                    "computation_time": computation_time,
+                    "cache_stats": core.get_cache_stats()
+                }
+            
+            self.finished.emit(result)
+        except Exception as e:
+            logger.error(f"Worker error: {type(e).__name__} {str(e)}")
+            self.error.emit(str(e))
 
 
 class IpInputLineEdit(QLineEdit):
@@ -101,8 +339,16 @@ class ClickToCopyLineEdit(QLineEdit):
 
 
 class LanCalcGUI(QWidget):
-    def __init__(self):
+    def __init__(self, debug_mode: bool = False):
         super().__init__()
+        self.debug_mode = debug_mode
+        self.worker_thread = None
+        self.worker = None
+        
+        if debug_mode:
+            core.setup_logging(debug=True)
+            logger.debug("GUI initialized in debug mode")
+        
         logger.info("Initializing LanCalc application")
         self.init_ui()
         self.check_clipboard()
@@ -149,10 +395,26 @@ class LanCalcGUI(QWidget):
 
             self.set_default_values()
 
+            # Debug mode checkbox
+            if self.debug_mode:
+                debug_layout = QHBoxLayout()
+                self.debug_checkbox = QCheckBox("Show Debug Info")
+                self.debug_checkbox.setFont(font)
+                self.debug_checkbox.setChecked(True)
+                debug_layout.addWidget(self.debug_checkbox)
+                debug_layout.addStretch()
+                main_layout.addLayout(debug_layout)
+
             self.calc_button = QPushButton("Calculate", self)
             self.calc_button.setFont(font)
             self.calc_button.clicked.connect(self.calculate_network)
             main_layout.addWidget(self.calc_button)
+
+            # Progress bar for async operations
+            self.progress_bar = QProgressBar(self)
+            self.progress_bar.setVisible(False)
+            self.progress_bar.setRange(0, 0)  # Indeterminate progress
+            main_layout.addWidget(self.progress_bar)
 
             self.network_output = ClickToCopyLineEdit(self)
             self.prefix_output = ClickToCopyLineEdit(self)
@@ -363,6 +625,91 @@ class LanCalcGUI(QWidget):
         except Exception as e:
             logger.error(f"Failed to check clipboard: {type(e).__name__} {str(e)}")
 
+    def start_async_calculation(self, ip: str, cidr: int):
+        """Start asynchronous calculation in worker thread."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            # Cancel previous calculation
+            self.worker_thread.quit()
+            self.worker_thread.wait()
+        
+        # Create new worker thread
+        self.worker_thread = QThread()
+        self.worker = ComputationWorker(ip, cidr, self.debug_mode)
+        self.worker.moveToThread(self.worker_thread)
+        
+        # Connect signals
+        self.worker_thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.handle_calculation_result)
+        self.worker.error.connect(self.handle_calculation_error)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.error.connect(self.worker_thread.quit)
+        
+        # Show progress
+        self.progress_bar.setVisible(True)
+        self.calc_button.setEnabled(False)
+        
+        # Start calculation
+        self.worker_thread.start()
+
+    def handle_calculation_result(self, result: dict):
+        """Handle successful calculation result."""
+        self.progress_bar.setVisible(False)
+        self.calc_button.setEnabled(True)
+        
+        # Update output fields
+        self.network_output.setText(result["network"])
+        self.prefix_output.setText(result["prefix"])
+        self.netmask_output.setText(result["netmask"])
+        self.broadcast_output.setText(result["broadcast"])
+        self.hostmin_output.setText(result["hostmin"])
+        self.hostmax_output.setText(result["hostmax"])
+        self.hosts_output.setText(result["hosts"])
+
+        # Show debug info if enabled
+        if self.debug_mode and hasattr(self, 'debug_checkbox') and self.debug_checkbox.isChecked():
+            debug_info = result.get("_debug", {})
+            if debug_info:
+                timing_msg = f"Computation time: {debug_info.get('computation_time', 0):.2f}ms"
+                cache_stats = debug_info.get('cache_stats', {})
+                cache_msg = f"Cache size: {cache_stats.get('size', 0)}"
+                self.status_label.setText(f"{timing_msg} | {cache_msg}")
+                return
+
+        # Update status with special range info if present
+        if result.get("comment"):
+            # Check if comment contains RFC reference
+            if "RFC" in result["comment"]:
+                # Extract the URL from the comment (it's already in the correct format)
+                import re
+
+                url_match = re.search(r"\((https://[^)]+)\)", result["comment"])
+                if url_match:
+                    rfc_url = url_match.group(1)
+                    # Extract text before the URL (e.g., "RFC 3330 Loopback" from "RFC 3330 Loopback (https://...)")
+                    comment_text = result["comment"].split(" (")[0]
+                    self.status_label.setText(
+                        f'<a href="{rfc_url}">{comment_text}</a>'
+                    )
+                else:
+                    self.status_label.setText(result["comment"])
+            else:
+                self.status_label.setText(result["comment"])
+        else:
+            self.status_label.setText(f'<a href="{core.REPO_URL}">LanCalc {VERSION}</a>')
+
+        # Clear error styling
+        self.ip_input.setStyleSheet("")
+        self.status_label.setStyleSheet("")
+
+    def handle_calculation_error(self, error_msg: str):
+        """Handle calculation error."""
+        self.progress_bar.setVisible(False)
+        self.calc_button.setEnabled(True)
+        
+        logger.error(f"Calculation error: {error_msg}")
+        self.status_label.setText(f"Calculation Error: {error_msg}")
+        self.status_label.setStyleSheet("color: red;")
+
     def calculate_network(self):
         """Calculate network information and update the display."""
         try:
@@ -386,43 +733,8 @@ class LanCalcGUI(QWidget):
             cidr = self.network_selector.currentIndex()
             logger.info(f"Using CIDR: /{cidr}")
 
-            # Calculate network information
-            result = core.compute_from_cidr(f"{ip}/{cidr}")
-
-            # Update output fields
-            self.network_output.setText(result["network"])
-            self.prefix_output.setText(result["prefix"])
-            self.netmask_output.setText(result["netmask"])
-            self.broadcast_output.setText(result["broadcast"])
-            self.hostmin_output.setText(result["hostmin"])
-            self.hostmax_output.setText(result["hostmax"])
-            self.hosts_output.setText(result["hosts"])
-
-            # Update status with special range info if present
-            if result.get("comment"):
-                # Check if comment contains RFC reference
-                if "RFC" in result["comment"]:
-                    # Extract the URL from the comment (it's already in the correct format)
-                    import re
-
-                    url_match = re.search(r"\((https://[^)]+)\)", result["comment"])
-                    if url_match:
-                        rfc_url = url_match.group(1)
-                        # Extract text before the URL (e.g., "RFC 3330 Loopback" from "RFC 3330 Loopback (https://...)")
-                        comment_text = result["comment"].split(" (")[0]
-                        self.status_label.setText(
-                            f'<a href="{rfc_url}">{comment_text}</a>'
-                        )
-                    else:
-                        self.status_label.setText(result["comment"])
-                else:
-                    self.status_label.setText(result["comment"])
-            else:
-                self.status_label.setText(f'<a href="{core.REPO_URL}">LanCalc {VERSION}</a>')
-
-            # Clear error styling
-            self.ip_input.setStyleSheet("")
-            self.status_label.setStyleSheet("")
+            # Use async calculation for better responsiveness
+            self.start_async_calculation(ip, cidr)
 
         except Exception as e:
             logger.error(
@@ -431,9 +743,12 @@ class LanCalcGUI(QWidget):
             self.status_label.setText("Calculation Error")
 
 
-def main() -> int:
+def main(debug_mode: bool = False) -> int:
     """
     Run GUI mode.
+
+    Args:
+        debug_mode: Whether to enable debug mode
 
     Returns:
         Exit code (0 for success, 1 for error)
@@ -444,7 +759,7 @@ def main() -> int:
             return 1
 
         app = QApplication(sys.argv)
-        window = LanCalcGUI()
+        window = LanCalcGUI(debug_mode=debug_mode)
         window.show()
         return app.exec_()
     except Exception as e:

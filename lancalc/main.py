@@ -8,6 +8,7 @@ import os
 import sys
 import traceback
 import typing
+import argparse
 
 # Configure logging
 logging.basicConfig(
@@ -23,11 +24,13 @@ try:
     from . import __version__ as VERSION
     from . import cli
     from . import gui
+    from . import core
 except ImportError:
     try:
         from lancalc import __version__ as VERSION
         import cli
         import gui
+        import core
     except Exception as e:
         logger.warning(f"{type(e).__name__} {str(e)}\n{traceback.format_exc()}")
         VERSION = "0.0.0"
@@ -98,6 +101,21 @@ def detect_interface_mode() -> str:
     return 'gui'
 
 
+def parse_debug_args() -> bool:
+    """
+    Parse command line arguments to detect debug mode.
+    
+    Returns:
+        True if debug mode is requested
+    """
+    try:
+        # Simple argument parsing to detect debug flags
+        args = sys.argv[1:] if len(sys.argv) > 1 else []
+        return any(arg in ['--debug', '-d', '--verbose', '-v'] for arg in args)
+    except Exception:
+        return False
+
+
 def main(argv: typing.Optional[list] = None) -> int:
     """
     Main entry point for LanCalc.
@@ -117,16 +135,25 @@ def main(argv: typing.Optional[list] = None) -> int:
     if argv is None:
         argv = sys.argv
 
+    # Check for debug mode early
+    debug_mode = parse_debug_args()
+    if debug_mode:
+        core.setup_logging(debug=True)
+        logger.debug("Debug mode enabled from command line")
+
     # If arguments are provided, use CLI mode
     if len(argv) > 1:
         return cli.main(argv[1:])  # Skip the script name
 
     # Auto-detect interface mode
     mode = detect_interface_mode()
+    
+    if debug_mode:
+        logger.debug(f"Detected interface mode: {mode}")
 
     if mode == 'gui':
         try:
-            return gui.main()
+            return gui.main(debug_mode=debug_mode)
         except Exception as e:
             logger.error(f"GUI failed: {type(e).__name__} {str(e)}")
             # Fallback to CLI help
